@@ -2227,7 +2227,7 @@
 
 
     <script>
-const USER_STORAGE_KEY = 'petalUsers';
+//const USER_STORAGE_KEY = 'petalUsers';
 
 let isAutoSetText = false;
 // 前后端连接配置
@@ -2257,7 +2257,7 @@ function goToDetectPage() {
     document.getElementById('system').scrollIntoView({ behavior: 'smooth' });
 }
 
-let userList = JSON.parse(localStorage.getItem(USER_STORAGE_KEY)) || [];
+//let userList = JSON.parse(localStorage.getItem(USER_STORAGE_KEY)) || [];
 const startBtn = document.getElementById('startBtn');
 const registerBtn = document.getElementById('registerBtn');
 startBtn.removeEventListener('click', showLoginModal);
@@ -3111,21 +3111,7 @@ window.addEventListener('scroll', () => xiaoyinDialog.style.display === 'block' 
 function getSelectedModel() {
     return modelSelect.value;
 }
-document.getElementById('loginClose').addEventListener('click', () => {
-    document.getElementById('loginMask').style.display = 'none';
-    document.getElementById('loginAccount').value = '';
-    document.getElementById('loginPwd').value = '';
-});
-
-document.getElementById('loginMask').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('loginMask')) {
-        document.getElementById('loginMask').style.display = 'none';
-        document.getElementById('loginAccount').value = '';
-        document.getElementById('loginPwd').value = '';
-    }
-});
-
-document.getElementById('loginSubmit').addEventListener('click', () => {
+document.getElementById('loginSubmit').addEventListener('click', async () => {
     const account = document.getElementById('loginAccount').value.trim();
     const pwd = document.getElementById('loginPwd').value.trim();
 
@@ -3139,42 +3125,50 @@ document.getElementById('loginSubmit').addEventListener('click', () => {
         document.getElementById('loginPwd').focus();
         return;
     }
-    const user = userList.find(item => item.account === account);
-    if (!user) {
-        alert('该账号未注册，请先完成注册！');
-        showRegisterForm(); 
-        return;
-    }
-    if (user.pwd !== pwd) {
-        alert('密码错误，请重新输入！');
+
+    try {
+        const response = await fetch(`${API_BASE}/api/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ account, password: pwd })
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || '登录失败');
+        }
+
+        // 登录成功后的原有逻辑（完全保留）
+        isLogin = true;
+        unlockPage();
+        document.getElementById('loginMask').style.display = 'none';
+        alert('登录成功！');
+        updateHeroButtons();
+        document.getElementById('system').scrollIntoView({ behavior: 'smooth' });
+
+        isGuest = false;
+        localStorage.removeItem('petalIsGuest');
+        const detectModules = document.querySelectorAll('.input-card, .result-card, .history-card');
+        detectModules.forEach(el => {
+            el.classList.remove('module-disable');
+            el.style.pointerEvents = 'auto';
+        });
+        const xiaoyinDialog = document.getElementById('xiaoyin-dialog');
+        const xiaoyinFloat = document.getElementById('xiaoyin-float');
+        const xiaoyinMini = document.getElementById('xiaoyin-mini');
+        xiaoyinDialog.style.display = 'none';
+        xiaoyinDialog.style.left = '50%';
+        xiaoyinDialog.style.top = '50%';
+        xiaoyinDialog.style.transform = 'translate(-50%, -50%)';
+        xiaoyinFloat.style.display = 'flex';
+        xiaoyinMini.style.display = 'none';
+        isDragging = false;
+        xiaoyinFloat.style.cursor = 'move';
+    } catch (error) {
+        alert(error.message);
         document.getElementById('loginPwd').value = '';
         document.getElementById('loginPwd').focus();
-        return;
     }
-    isLogin = true;
-    unlockPage();
-    document.getElementById('loginMask').style.display = 'none';
-    alert('登录成功！');
-    updateHeroButtons();
-    document.getElementById('system').scrollIntoView({ behavior: 'smooth' });
-
-    isGuest = false;localStorage.removeItem('petalIsGuest');
-    const detectModules = document.querySelectorAll('.input-card, .result-card, .history-card');
-detectModules.forEach(el => {
-    el.classList.remove('module-disable');
-    el.style.pointerEvents = 'auto';
-});
-    const xiaoyinDialog = document.getElementById('xiaoyin-dialog');
-    const xiaoyinFloat = document.getElementById('xiaoyin-float');
-    const xiaoyinMini = document.getElementById('xiaoyin-mini');
-    xiaoyinDialog.style.display = 'none';
-    xiaoyinDialog.style.left = '50%';
-    xiaoyinDialog.style.top = '50%';
-    xiaoyinDialog.style.transform = 'translate(-50%, -50%)';
-    xiaoyinFloat.style.display = 'flex';
-    xiaoyinMini.style.display = 'none';
-    isDragging = false;
-    xiaoyinFloat.style.cursor = 'move';
 });
 
 document.addEventListener('keydown', (e) => {
@@ -3253,7 +3247,7 @@ function showChangePwdForm() {
 }
 document.getElementById('toRegister').addEventListener('click', showRegisterForm);
 document.getElementById('toLogin').addEventListener('click', showLoginForm);
-document.getElementById('registerSubmit').addEventListener('click', () => {
+document.getElementById('registerSubmit').addEventListener('click', async () => {
     const regAccount = document.getElementById('regAccount').value.trim();
     const regPwd = document.getElementById('regPwd').value.trim();
     const regPwdConfirm = document.getElementById('regPwdConfirm').value.trim();
@@ -3273,7 +3267,6 @@ document.getElementById('registerSubmit').addEventListener('click', () => {
         document.getElementById('regPwdConfirm').focus();
         return;
     }
-
     if (regPwd !== regPwdConfirm) {
         alert('两次输入的密码不一致，请检查！');
         document.getElementById('regPwdConfirm').value = '';
@@ -3281,18 +3274,25 @@ document.getElementById('registerSubmit').addEventListener('click', () => {
         return;
     }
 
-    const isAccountExist = userList.some(item => item.account === regAccount);
-    if (isAccountExist) {
-        alert('该账号已注册，请直接登录！');
-        showLoginForm();
-        return;
-    }
+    try {
+        const response = await fetch(`${API_BASE}/api/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ account: regAccount, password: regPwd })
+        });
 
-    userList.push({ account: regAccount, pwd: regPwd });
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userList));
-    alert('注册成功！请使用新账号登录');
-    isGuest = false;localStorage.removeItem('petalIsGuest');
-    showLoginForm(); 
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || '注册失败');
+        }
+
+        alert('注册成功！请使用新账号登录');
+        isGuest = false;
+        localStorage.removeItem('petalIsGuest');
+        showLoginForm();
+    } catch (error) {
+        alert(error.message);
+    }
 });
 document.getElementById('registerBtn').addEventListener('click', (e) => {
     e.preventDefault();
@@ -3337,11 +3337,12 @@ function showChangePwdForm() {
 
 document.getElementById('toChangePwd').addEventListener('click', showChangePwdForm);
 document.getElementById('changeToLogin').addEventListener('click', showLoginForm);
-document.getElementById('changePwdSubmit').addEventListener('click', () => {
+document.getElementById('changePwdSubmit').addEventListener('click', async () => {
     const account = document.getElementById('changeAccount').value.trim();
     const oldPwd = document.getElementById('oldPwd').value.trim();
     const newPwd = document.getElementById('newPwd').value.trim();
     const newPwdConfirm = document.getElementById('newPwdConfirm').value.trim();
+
     if (!account) {
         alert('请输入登录账号！');
         document.getElementById('changeAccount').focus();
@@ -3362,44 +3363,35 @@ document.getElementById('changePwdSubmit').addEventListener('click', () => {
         document.getElementById('newPwdConfirm').focus();
         return;
     }
-
-    const userIndex = userList.findIndex(item => item.account === account);
-    if (userIndex === -1) {
-        alert('该账号未注册，请先完成注册！');
-        showRegisterForm(); 
-        return;
-    }
-
-    const targetUser = userList[userIndex];
-    if (targetUser.pwd !== oldPwd) {
-        alert('原密码错误，请重新输入！');
-        document.getElementById('oldPwd').value = '';
-        document.getElementById('oldPwd').focus();
-        return;
-    }
-    if (newPwd === oldPwd) {
-        alert('新密码不能与原密码相同，请重新设置！');
-        document.getElementById('newPwd').value = '';
-        document.getElementById('newPwdConfirm').value = '';
-        document.getElementById('newPwd').focus();
-        return;
-    }
     if (newPwd !== newPwdConfirm) {
         alert('两次输入的新密码不一致，请检查！');
         document.getElementById('newPwdConfirm').value = '';
         document.getElementById('newPwdConfirm').focus();
         return;
     }
-    userList[userIndex].pwd = newPwd;
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userList));
-    alert('密码修改成功！请使用新密码登录');
 
-    showLoginForm();
-    document.getElementById('changeAccount').value = '';
-    document.getElementById('oldPwd').value = '';
-    document.getElementById('newPwd').value = '';
-    document.getElementById('newPwdConfirm').value = '';
-    document.getElementById('loginAccount').focus();
+    try {
+        const response = await fetch(`${API_BASE}/api/change_password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ account, old_password: oldPwd, new_password: newPwd })
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || '修改失败');
+        }
+
+        alert('密码修改成功！请使用新密码登录');
+        showLoginForm();
+        document.getElementById('changeAccount').value = '';
+        document.getElementById('oldPwd').value = '';
+        document.getElementById('newPwd').value = '';
+        document.getElementById('newPwdConfirm').value = '';
+        document.getElementById('loginAccount').focus();
+    } catch (error) {
+        alert(error.message);
+    }
 });
 const uploadFileBtn = document.getElementById('uploadFileBtn');
 const fileInput = document.getElementById('fileInput');
